@@ -15,13 +15,13 @@ namespace SilentHelp.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    FullName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Role = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    Phone = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    FullName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    Email = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
+                    PasswordHash = table.Column<string>(type: "TEXT", nullable: false),
+                    Role = table.Column<string>(type: "TEXT", maxLength: 10, nullable: false),
+                    Phone = table.Column<string>(type: "TEXT", maxLength: 20, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -32,15 +32,15 @@ namespace SilentHelp.Migrations
                 name: "Alerts",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ChildId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TriggerType = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    Latitude = table.Column<double>(type: "float", nullable: true),
-                    Longitude = table.Column<double>(type: "float", nullable: true),
-                    AudioUrl = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    AcknowledgedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ChildId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    TriggerType = table.Column<string>(type: "TEXT", maxLength: 10, nullable: false),
+                    Latitude = table.Column<double>(type: "REAL", nullable: true),
+                    Longitude = table.Column<double>(type: "REAL", nullable: true),
+                    AudioUrl = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    AcknowledgedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -57,12 +57,12 @@ namespace SilentHelp.Migrations
                 name: "FamilyLinks",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ParentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ChildId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    InviteCode = table.Column<string>(type: "nvarchar(8)", maxLength: 8, nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ParentId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ChildId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    InviteCode = table.Column<string>(type: "TEXT", maxLength: 8, nullable: false),
+                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {

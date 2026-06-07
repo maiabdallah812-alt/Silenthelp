@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -9,134 +9,89 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ---- Database ----
+// DATABASE
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlite("Data Source=app.db"));
 
-// ---- Authentication (JWT) ----
+// JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
-        };
-
-        // Allow SignalR to receive token from query string
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                var accessToken = context.Request.Query["access_token"];
-                var path = context.HttpContext.Request.Path;
-
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
-                {
-                    context.Token = accessToken;
-                }
-                return Task.CompletedTask;
-            }
-        };
-    });
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+    };
+});
 
 builder.Services.AddAuthorization();
 
-// ---- Services ----
+// Services
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAudioStorageService, AudioStorageService>();
+IServiceCollection serviceCollection = builder.Services.AddScoped<INotificationService, NotificationService>();
 
-// ---- SignalR ----
 builder.Services.AddSignalR();
-
-// ---- Controllers + CORS ----
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
-// ---- Swagger with JWT Authorization ----
-builder.Services.AddSwaggerGen(options =>
+builder.Services.AddControllers();
+// Swagger
+builder.Services.AddSwaggerGen(c =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo
+    c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "SafeGuard API",
         Version = "v1",
-        Description = "Child Safety Alert System API"
-    });
-
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Enter your JWT token"
-    });
-
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-
-    // For SignalR (needs credentials)
-    options.AddPolicy("SignalR", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000", "https://yourdomain.com")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        Description = "Child Safety Monitoring System"
     });
 });
 
 var app = builder.Build();
 
-// ---- Middleware Pipeline ----
-if (app.Environment.IsDevelopment())
+// Enable Swagger (Production included)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SafeGuard API v1");
+    c.RoutePrefix = string.Empty;
+});
 
-app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+// Routing
+app.UseRouting();
 
+// CORS
+app.UseCors(policy =>
+    policy.AllowAnyOrigin()
+          .AllowAnyMethod()
+          .AllowAnyHeader());
+
+// Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Map endpoints
 app.MapControllers();
-app.MapHub<AlertHub>("/hubs/alerts").RequireCors("SignalR");
+app.MapHub<AlertHub>("/hubs/alerts");
 
-// ---- Auto-migrate database ----
-using (var scope = app.Services.CreateScope())
+// Root endpoint
+app.MapGet("/", () => "SafeGuard API is running 🚀");
+
+// Health check endpoint
+app.MapGet("/health", () => new
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
+    status = "healthy",
+    timestamp = DateTime.UtcNow,
+    version = "1.0.0"
+});
+
+// Port configuration (Railway compatible)
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Urls.Add($"http://0.0.0.0:{port}");
 
 app.Run();
