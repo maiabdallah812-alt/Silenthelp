@@ -8,6 +8,23 @@ using SilentHelp.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+// Read Twilio credentials from Environment Variables
+var twilioAccountSid = Environment.GetEnvironmentVariable("TWILIO_ACCOUNT_SID")
+    ?? builder.Configuration["Twilio:AccountSid"]
+    ?? "";
+
+var twilioAuthToken = Environment.GetEnvironmentVariable("TWILIO_AUTH_TOKEN")
+    ?? builder.Configuration["Twilio:AuthToken"]
+    ?? "";
+
+var twilioFromNumber = Environment.GetEnvironmentVariable("TWILIO_FROM_NUMBER")
+    ?? builder.Configuration["Twilio:FromNumber"]
+    ?? "";
+
+// Store in configuration
+builder.Configuration["Twilio:AccountSid"] = twilioAccountSid;
+builder.Configuration["Twilio:AuthToken"] = twilioAuthToken;
+builder.Configuration["Twilio:FromNumber"] = twilioFromNumber;
 
 // DATABASE
 builder.Services.AddDbContext<AppDbContext>(options =>
