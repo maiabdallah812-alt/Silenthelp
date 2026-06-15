@@ -10,13 +10,19 @@ namespace SilentHelp.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-
+            migrationBuilder.AddColumn<string>(
+                name: "DeviceToken",
+                table: "Users",
+                type: "TEXT",
+                nullable: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-
+            migrationBuilder.DropColumn(
+                name: "DeviceToken",
+                table: "Users");
         }
     }
 }
