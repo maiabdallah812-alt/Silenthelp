@@ -20,17 +20,21 @@ namespace Silenthelp.Api.Controllers
         private readonly IHubContext<AlertHub> _hubContext;
         private readonly IAudioStorageService _audioStorage;
 
+        private readonly INotificationService _notificationService;
+
         public AlertsController(
             AppDbContext db,
             IHubContext<AlertHub> hubContext,
-            IAudioStorageService audioStorage)
+            IAudioStorageService audioStorage,
+            INotificationService notificationService)
         {
             _db = db;
             _hubContext = hubContext;
             _audioStorage = audioStorage;
+            _notificationService = notificationService;
         }
 
-        // POST /api/alerts - Child sends emergency alert
+        // POST /api/alerts 
         [HttpPost]
         public async Task<IActionResult> CreateAlert([FromBody] CreateAlertDto dto)
         {
@@ -76,12 +80,42 @@ namespace Silenthelp.Api.Controllers
                 .Select(fl => fl.ParentId)
                 .ToListAsync();
 
-            foreach (var parentId in parentIds)
+            // Get parent details for notifications
+            var parents = await _db.Users
+                .Where(u => parentIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.Phone, u.DeviceToken })
+                .ToListAsync();
+
+            foreach (var parent in parents)
             {
+                // 1. Real-time WebSocket
                 await _hubContext.Clients
-                    .Group($"parent_{parentId}")
+                    .Group($"parent_{parent.Id}")
                     .SendAsync("ReceiveAlert", alertResponse);
-            }
+
+                // 2. Push Notification (Firebase)
+                if (!string.IsNullOrEmpty(parent.DeviceToken))
+                {
+                    await _notificationService.SendPushNotificationAsync(
+                        parent.DeviceToken,
+                        "🚨 EMERGENCY ALERT!",
+                        $"{child.FullName} is in danger at {DateTime.Now:HH:mm:ss}"
+                    );
+                }
+
+                // 3. SMS Notification (Twilio)
+                if (!string.IsNullOrEmpty(parent.Phone))
+                {
+                    var smsMessage = $"🚨 EMERGENCY ALERT!\n" +
+                                     $"Child: {child.FullName}\n" +
+                                     $"Location: {alertResponse.Latitude}, {alertResponse.Longitude}\n" +
+                                     $"Time: {DateTime.Now:HH:mm:ss}\n" +
+                                     $"Open SafeGuard app immediately!";
+
+                    await _notificationService.SendSMSAsync(parent.Phone, smsMessage);
+                }
+            
+        }
 
             return CreatedAtAction(nameof(GetAlert), new { id = alert.Id }, alertResponse);
         }
@@ -101,7 +135,7 @@ namespace Silenthelp.Api.Controllers
             return Ok(new { url });
         }
 
-        // GET /api/alerts - Parent gets all alerts for their children
+        // GET /api/alerts 
         [HttpGet]
         public async Task<IActionResult> GetAlerts()
         {
@@ -179,7 +213,7 @@ namespace Silenthelp.Api.Controllers
             });
         }
 
-        // PATCH /api/alerts/{id}/acknowledge - Parent acknowledges alert
+        // PATCH /api/alerts/{id}/acknowledge 
         [HttpPatch("{id}/acknowledge")]
         public async Task<IActionResult> AcknowledgeAlert(Guid id)
         {

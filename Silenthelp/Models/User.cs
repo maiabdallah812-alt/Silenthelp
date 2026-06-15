@@ -23,6 +23,7 @@ namespace SilentHelp.Models
         public string? Phone { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string? DeviceToken { get; set; }
 
         // Navigation properties
         public ICollection<FamilyLink> ParentLinks { get; set; } = new List<FamilyLink>();

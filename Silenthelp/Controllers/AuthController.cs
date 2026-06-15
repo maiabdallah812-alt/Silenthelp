@@ -1,11 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using BCrypt.Net;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SilentHelp.Data;
 using SilentHelp.Models;
 using SilentHelp.Models.DTOs;
 using SilentHelp.Services;
-using BCrypt.Net;
+using System.Security.Claims;
 namespace Silenthelp.Api.Controllers
+
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -79,5 +82,25 @@ namespace Silenthelp.Api.Controllers
                 }
             });
         }
+
+
+        [HttpPost("save-device-token")]
+        [Authorize]
+        public async Task<IActionResult> SaveDeviceToken([FromBody] SaveDeviceTokenRequest request)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) return Unauthorized();
+            var userId = Guid.Parse(userIdClaim.Value);
+            if (userId == null) return Unauthorized();
+
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) return NotFound();
+
+            user.DeviceToken = request.DeviceToken;
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Device token saved" });
+        }
     }
 }
+    

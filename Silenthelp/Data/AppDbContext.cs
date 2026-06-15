@@ -11,6 +11,7 @@ namespace SilentHelp.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<FamilyLink> FamilyLinks => Set<FamilyLink>();
         public DbSet<Alert> Alerts => Set<Alert>();
+        
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
