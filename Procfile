@@ -1,1 +1,1 @@
-web: dotnet Silenthelp.dll --urls http://0.0.0.0:
+﻿web: dotnet Silenthelp.dll --urls http://0.0.0.0:${PORT}
