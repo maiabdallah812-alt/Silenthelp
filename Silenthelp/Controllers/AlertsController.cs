@@ -110,7 +110,7 @@ namespace Silenthelp.Api.Controllers
                 {
                     var smsMessage = $"🚨 EMERGENCY ALERT!\n" +
                                      $"Child: {child.FullName}\n" +
-                                     $"Location: {alertResponse.Latitude}, {alertResponse.Longitude}\n" +
+                                    $"Location: https://maps.google.com/maps?q={alertResponse.Latitude},{alertResponse.Longitude}\n"+
                                      $"Time: {DateTime.Now:HH:mm:ss}\n" +
                                      $"Open SafeGuard app immediately!";
 
