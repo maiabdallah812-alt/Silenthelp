@@ -60,12 +60,14 @@ namespace Silenthelp.Api.Controllers
 
             // Load child info for the response
             var child = await _db.Users.FindAsync(userId.Value);
+            if (child == null)
+                return NotFound(new { error = "User not found" });
 
             var alertResponse = new AlertResponseDto
             {
                 Id = alert.Id,
                 ChildId = alert.ChildId,
-                ChildName = child?.FullName ?? "Unknown",
+                ChildName = child.FullName,
                 TriggerType = alert.TriggerType,
                 Latitude = alert.Latitude,
                 Longitude = alert.Longitude,
@@ -114,8 +116,7 @@ namespace Silenthelp.Api.Controllers
 
                     await _notificationService.SendSMSAsync(parent.Phone, smsMessage);
                 }
-            
-        }
+            }
 
             return CreatedAtAction(nameof(GetAlert), new { id = alert.Id }, alertResponse);
         }
