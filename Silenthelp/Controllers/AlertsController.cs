@@ -19,7 +19,6 @@ namespace Silenthelp.Api.Controllers
         private readonly AppDbContext _db;
         private readonly IHubContext<AlertHub> _hubContext;
         private readonly IAudioStorageService _audioStorage;
-
         private readonly INotificationService _notificationService;
 
         public AlertsController(
@@ -88,6 +87,10 @@ namespace Silenthelp.Api.Controllers
                 .Select(u => new { u.Id, u.Phone, u.DeviceToken })
                 .ToListAsync();
 
+            // Get Egypt time once (outside the loop)
+            var egyptTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time");
+            var egyptTime = TimeZoneInfo.ConvertTime(DateTime.Now, egyptTimeZone);
+
             foreach (var parent in parents)
             {
                 // 1. Real-time WebSocket
@@ -101,7 +104,7 @@ namespace Silenthelp.Api.Controllers
                     await _notificationService.SendPushNotificationAsync(
                         parent.DeviceToken,
                         "🚨 EMERGENCY ALERT!",
-                        $"{child.FullName} is in danger at {DateTime.Now:HH:mm:ss}"
+                        $"{child.FullName} is in danger at {egyptTime:HH:mm:ss}"
                     );
                 }
 
@@ -110,8 +113,8 @@ namespace Silenthelp.Api.Controllers
                 {
                     var smsMessage = $"🚨 EMERGENCY ALERT!\n" +
                                      $"Child: {child.FullName}\n" +
-                                    $"Location: https://maps.google.com/maps?q={alertResponse.Latitude},{alertResponse.Longitude}\n"+
-                                     $"Time: {DateTime.Now:HH:mm:ss}\n" +
+                                     $"Location: https://maps.google.com/maps?q={alertResponse.Latitude},{alertResponse.Longitude}\n" +
+                                     $"Time: {egyptTime:HH:mm:ss}\n" +
                                      $"Open SafeGuard app immediately!";
 
                     await _notificationService.SendSMSAsync(parent.Phone, smsMessage);
