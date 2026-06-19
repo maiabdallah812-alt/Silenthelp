@@ -28,7 +28,7 @@ builder.Configuration["Twilio:FromNumber"] = twilioFromNumber;
 
 // DATABASE
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=app.db"));
+    options.UseSqlite("Data Source=app.db;Foreign Keys=True;"));
 
 // JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
