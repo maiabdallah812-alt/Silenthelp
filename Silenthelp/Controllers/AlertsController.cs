@@ -11,6 +11,42 @@ using System.Security.Claims;
 
 namespace Silenthelp.Api.Controllers
 {
+    // DTOs
+    public class DetectEmergencyDto
+    {
+        public string? Text { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+    }
+
+    public class CreateAlertDto
+    {
+        public string? TriggerType { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public string? AudioUrl { get; set; }
+    }
+
+    public class AlertResponseDto
+    {
+        public Guid Id { get; set; }
+        public Guid ChildId { get; set; }
+        public string? ChildName { get; set; }
+        public string? TriggerType { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public string? AudioUrl { get; set; }
+        public string? Status { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? AcknowledgedAt { get; set; }
+    }
+
+    public class LoginDto
+    {
+        public string? Email { get; set; }
+        public string? Password { get; set; }
+    }
+
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
@@ -68,8 +104,8 @@ namespace Silenthelp.Api.Controllers
                 ChildId = alert.ChildId,
                 ChildName = child.FullName,
                 TriggerType = alert.TriggerType,
-                Latitude = alert.Latitude,
-                Longitude = alert.Longitude,
+                Latitude = alert.Latitude ?? 0,
+                Longitude = alert.Longitude ?? 0,
                 AudioUrl = alert.AudioUrl,
                 Status = alert.Status,
                 CreatedAt = alert.CreatedAt,
@@ -122,6 +158,103 @@ namespace Silenthelp.Api.Controllers
             }
 
             return CreatedAtAction(nameof(GetAlert), new { id = alert.Id }, alertResponse);
+        }
+
+        // POST /api/alerts/detect-emergency - Detect emergency keywords and auto-send alert
+        [HttpPost("detect-emergency")]
+        public async Task<IActionResult> DetectEmergency([FromBody] DetectEmergencyDto dto)
+        {
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized();
+
+            var emergencyKeywords = new[]
+            {
+                "الحقوني", "ساعديني", "خطر", "مساعدة", "عاجل", "إنقاذ",
+                "help", "emergency", "danger", "save me", "urgent", "rescue"
+            };
+
+            // Convert text to lowercase for comparison
+            var lowerText = dto.Text?.ToLower() ?? "";
+            bool isEmergency = emergencyKeywords.Any(keyword => lowerText.Contains(keyword.ToLower()));
+
+            if (!isEmergency)
+                return Ok(new { detected = false, message = "No emergency keyword detected" });
+
+            // Emergency detected - Create and send alert automatically
+            var child = await _db.Users.FindAsync(userId.Value);
+            if (child == null)
+                return NotFound(new { error = "User not found" });
+
+            var alert = new Alert
+            {
+                ChildId = userId.Value,
+                TriggerType = "voice",
+                Latitude = dto.Latitude,
+                Longitude = dto.Longitude,
+                Status = "active",
+            };
+
+            _db.Alerts.Add(alert);
+            await _db.SaveChangesAsync();
+
+            var alertResponse = new AlertResponseDto
+            {
+                Id = alert.Id,
+                ChildId = alert.ChildId,
+                ChildName = child.FullName,
+                TriggerType = alert.TriggerType,
+                Latitude = alert.Latitude ?? 0,
+                Longitude = alert.Longitude ?? 0,
+                Status = alert.Status,
+                CreatedAt = alert.CreatedAt,
+            };
+
+            // Send notifications to all linked parents
+            var parentIds = await _db.FamilyLinks
+                .Where(fl => fl.ChildId == userId.Value && fl.IsActive)
+                .Select(fl => fl.ParentId)
+                .ToListAsync();
+
+            var parents = await _db.Users
+                .Where(u => parentIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.Phone, u.DeviceToken })
+                .ToListAsync();
+
+            var egyptTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time");
+            var egyptTime = TimeZoneInfo.ConvertTime(DateTime.Now, egyptTimeZone);
+
+            foreach (var parent in parents)
+            {
+                // Real-time WebSocket
+                await _hubContext.Clients
+                    .Group($"parent_{parent.Id}")
+                    .SendAsync("ReceiveAlert", alertResponse);
+
+                // Push Notification
+                if (!string.IsNullOrEmpty(parent.DeviceToken))
+                {
+                    await _notificationService.SendPushNotificationAsync(
+                        parent.DeviceToken,
+                        "🚨 EMERGENCY ALERT!",
+                        $"{child.FullName} says: {dto.Text}"
+                    );
+                }
+
+                // SMS Notification
+                if (!string.IsNullOrEmpty(parent.Phone))
+                {
+                    var smsMessage = $"🚨 EMERGENCY ALERT!\n" +
+                                     $"Child: {child.FullName}\n" +
+                                     $"Said: {dto.Text}\n" +
+                                     $"Location: https://maps.google.com/maps?q={alertResponse.Latitude},{alertResponse.Longitude}\n" +
+                                     $"Time: {egyptTime:HH:mm:ss}\n" +
+                                     $"Open SafeGuard app immediately!";
+
+                    await _notificationService.SendSMSAsync(parent.Phone, smsMessage);
+                }
+            }
+
+            return Ok(new { detected = true, alert = alertResponse, message = "Emergency alert sent to parents" });
         }
 
         // POST /api/alerts/upload-audio - Upload audio recording
@@ -181,8 +314,8 @@ namespace Silenthelp.Api.Controllers
                 ChildId = a.ChildId,
                 ChildName = a.Child?.FullName ?? "Unknown",
                 TriggerType = a.TriggerType,
-                Latitude = a.Latitude,
-                Longitude = a.Longitude,
+                Latitude = a.Latitude ?? 0,
+                Longitude = a.Longitude ?? 0,
                 AudioUrl = a.AudioUrl,
                 Status = a.Status,
                 CreatedAt = a.CreatedAt,
@@ -208,8 +341,8 @@ namespace Silenthelp.Api.Controllers
                 ChildId = alert.ChildId,
                 ChildName = alert.Child?.FullName ?? "Unknown",
                 TriggerType = alert.TriggerType,
-                Latitude = alert.Latitude,
-                Longitude = alert.Longitude,
+                Latitude = alert.Latitude ?? 0,
+                Longitude = alert.Longitude ?? 0,
                 AudioUrl = alert.AudioUrl,
                 Status = alert.Status,
                 CreatedAt = alert.CreatedAt,
